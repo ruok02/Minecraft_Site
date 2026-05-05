@@ -1,51 +1,71 @@
 import { addMinutes } from 'date-fns';
 
-const REFERENCE_REAL_TIME = new Date('2026-04-30T01:36:00').getTime(); 
+const REFERENCE_REAL_TIME = new Date('2026-04-30T01:36:00').getTime();
 
 export const getServerTime = () => {
   const now = new Date().getTime();
   const diffInSeconds = (now - REFERENCE_REAL_TIME) / 1000;
-  
   const totalServerMinutes = Math.floor(diffInSeconds / 2);
-  
-  // 🌟 핵심 수정: 여름 3일 기준이므로 전체 루프의 32번째 날(인덱스 32)로 잡습니다.
-  const baseDays = 32; 
+  const baseDays = 32;
   const totalDays = Math.floor(totalServerMinutes / 1440) + baseDays;
-
-  // 120일 루프 (봄 0~29, 여름 30~59, 가을 60~89, 겨울 90~119)
   const seasons: ('봄' | '여름' | '가을' | '겨울')[] = ['봄', '여름', '가을', '겨울'];
   const seasonIndex = Math.floor((totalDays % 120) / 30);
   const currentSeason = seasons[seasonIndex];
-
-  // 일자 계산 (1~30일)
   const dayInSeason = (totalDays % 30) + 1;
-
   const hour = Math.floor((totalServerMinutes % 1440) / 60);
   const minute = totalServerMinutes % 60;
-
-  return { 
-    season: currentSeason, 
-    day: dayInSeason, 
-    hour: String(hour).padStart(2, '0'), 
-    minute: String(minute).padStart(2, '0') 
+  return {
+    season: currentSeason,
+    day: dayInSeason,
+    hour: String(hour).padStart(2, '0'),
+    minute: String(minute).padStart(2, '0')
   };
 };
 
 /**
- * 최종 수확 가능 시간을 계산합니다.
+ * 확정 공식에 따른 실제 성장 시간(분) 계산
+ * Step1: 제철 작물이면 baseMins × 0.5
+ * Step2: 봄이면 현재 시간 × 0.8 (추가 20% 단축)
+ * Step3: 겨울이면 baseMins × 0.5 만큼 추가
  */
-export const getHarvestTime = (plantedAt: Date, baseDays: number, currentSeason: string): Date => {
-  let multiplier = 1.0;
-  if (currentSeason === '봄') multiplier = 1.2;
-  else if (currentSeason === '겨울') multiplier = 0.5;
+export const getGrowthMinutes = (
+  baseDays: number,
+  currentSeason: '봄' | '여름' | '가을' | '겨울',
+  cropSeason: '봄' | '여름' | '가을' | '겨울'
+): number => {
+  const baseMins = baseDays * 48;
+  const isInSeason = currentSeason === cropSeason;
 
-  const totalMinutes = (baseDays * 48) / multiplier;
-  return addMinutes(plantedAt, totalMinutes);
+  let growthMins = baseMins;
+
+  // Step1: 제철 보너스 +50%
+  if (isInSeason) {
+    growthMins = growthMins * 0.5;
+  }
+
+  // Step2: 봄 추가 보너스 +20%
+  if (currentSeason === '봄') {
+    growthMins = growthMins * 0.8;
+  }
+
+  // Step3: 겨울 패널티 -50% (기본 시간의 절반을 더함)
+  if (currentSeason === '겨울') {
+    growthMins = growthMins + baseMins * 0.5;
+  }
+
+  return growthMins;
 };
 
-/**
- * 다음 물 주기 시간을 계산합니다.
- */
+export const getHarvestTime = (
+  plantedAt: Date,
+  baseDays: number,
+  currentSeason: '봄' | '여름' | '가을' | '겨울',
+  cropSeason: '봄' | '여름' | '가을' | '겨울'
+): Date => {
+  const mins = getGrowthMinutes(baseDays, currentSeason, cropSeason);
+  return addMinutes(plantedAt, mins);
+};
+
 export const getNextWateringTime = (lastWatered: Date, currentSeason: string): Date => {
   const interval = currentSeason === '여름' ? 24 : 48;
   return addMinutes(lastWatered, interval);
