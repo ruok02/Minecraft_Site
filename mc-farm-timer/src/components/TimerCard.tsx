@@ -3,8 +3,11 @@ import { Card, CardContent, Typography, Button, Box, Divider } from '@mui/materi
 
 interface TimerProps {
   cropName: string;
-  growthMinutes: number;   // 실제 성장 시간(분) - calcTime에서 계산된 값
-  waterInterval: number;   // 물 주기 간격(분) - 24 or 48
+  growthMinutes: number;
+  waterInterval: number;
+  plantedAt: string;
+  lastWateredAt: string | null;
+  onWater: () => void;
   onRemove: () => void;
 }
 
@@ -12,59 +15,85 @@ export const TimerCard: React.FC<TimerProps> = ({
   cropName,
   growthMinutes,
   waterInterval,
-  onRemove
+  plantedAt,
+  lastWateredAt,
+  onWater,
+  onRemove,
 }) => {
-  // 물을 줬는지 여부 (처음엔 false → 타이머 정지 상태)
-  const [isWatered, setIsWatered] = useState(false);
-  // 수확까지 남은 실제 초
-  const [harvestLeft, setHarvestLeft] = useState(growthMinutes * 60);
-  // 물 주기까지 남은 초
-  const [waterLeft, setWaterLeft] = useState(waterInterval * 60);
-  // 물이 말랐는지 여부
-  const [isDry, setIsDry] = useState(false);
+  const waterIntervalSecs = waterInterval * 60;
+  const totalHarvestSecs = growthMinutes * 60;
 
-  const harvestRef = useRef(harvestLeft);
-  const waterRef = useRef(waterLeft);
-  harvestRef.current = harvestLeft;
-  waterRef.current = waterLeft;
+  const isValidDate = (d: string | null) =>
+    !!d && d !== 'null' && !isNaN(new Date(d).getTime());
+
+  // ✅ 물 줬는지 여부 - ref로 관리해서 클로저 문제 없애기
+  const isWateredRef = useRef(isValidDate(lastWateredAt));
+  const isDryRef = useRef(false);
+  const waterLeftRef = useRef(
+    isValidDate(lastWateredAt)
+      ? Math.max(0, waterIntervalSecs - Math.floor((Date.now() - new Date(lastWateredAt!).getTime()) / 1000))
+      : waterIntervalSecs
+  );
+  const harvestLeftRef = useRef(
+    isValidDate(lastWateredAt)
+      ? Math.max(0, totalHarvestSecs - Math.floor((Date.now() - new Date(plantedAt).getTime()) / 1000))
+      : totalHarvestSecs
+  );
+
+  const [isWatered, setIsWatered] = useState(isWateredRef.current);
+  const [isDry, setIsDry] = useState(
+    isWateredRef.current && waterLeftRef.current <= 0
+  );
+  const [waterLeft, setWaterLeft] = useState(waterLeftRef.current);
+  const [harvestLeft, setHarvestLeft] = useState(harvestLeftRef.current);
 
   useEffect(() => {
-    // 물 안 줬으면 타이머 전체 정지
-    if (!isWatered) return;
+    // 초기 isDry 동기화
+    if (isWateredRef.current && waterLeftRef.current <= 0) {
+      isDryRef.current = true;
+      setIsDry(true);
+    }
 
     const interval = setInterval(() => {
-      // 물이 마른 상태면 수확 타이머 정지
-      if (!isDry) {
-        setHarvestLeft(prev => Math.max(0, prev - 1));
-      }
-      // 물 주기 타이머는 항상 흐름
-      setWaterLeft(prev => {
-        if (prev <= 1) {
-          setIsDry(true); // 물 마름 처리
-          // 브라우저 알림
-          if (Notification.permission === 'granted') {
-            new Notification(`🌵 ${cropName} 밭이 말랐어요!`, {
-              body: '물을 주지 않으면 작물이 자라지 않습니다.'
-            });
-          }
-          return 0;
+      if (!isWateredRef.current) return; // 물 안 줬으면 아무것도 안 함
+
+      // 물 주기 타이머
+      waterLeftRef.current = Math.max(0, waterLeftRef.current - 1);
+      setWaterLeft(waterLeftRef.current);
+
+      if (waterLeftRef.current <= 0 && !isDryRef.current) {
+        isDryRef.current = true;
+        setIsDry(true);
+        if (Notification.permission === 'granted') {
+          new Notification(`🌵 ${cropName} 밭이 말랐어요!`, {
+            body: '물을 주지 않으면 작물이 자라지 않습니다.'
+          });
         }
-        return prev - 1;
-      });
+      }
+
+      // 수확 타이머: 안 마른 상태일 때만
+      if (!isDryRef.current) {
+        harvestLeftRef.current = Math.max(0, harvestLeftRef.current - 1);
+        setHarvestLeft(harvestLeftRef.current);
+      }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isWatered, isDry, cropName]);
+  }, []);
 
-  // 물 주기 버튼 핸들러
-  const handleWater = () => {
-    setIsWatered(true);
-    setIsDry(false);
-    setWaterLeft(waterInterval * 60);
-    // 알림 권한 요청
+  const handleWaterClick = () => {
     if (Notification.permission === 'default') {
       Notification.requestPermission();
     }
+    // ✅ ref 직접 업데이트 → 클로저 문제 없음
+    isWateredRef.current = true;
+    isDryRef.current = false;
+    waterLeftRef.current = waterIntervalSecs;
+
+    setIsWatered(true);
+    setIsDry(false);
+    setWaterLeft(waterIntervalSecs);
+    onWater(); // App.tsx에 lastWateredAt 저장
   };
 
   const formatTime = (seconds: number) => {
@@ -73,6 +102,8 @@ export const TimerCard: React.FC<TimerProps> = ({
     const s = seconds % 60;
     return `${m}분 ${s}초`;
   };
+
+  const isButtonDisabled = isWatered && !isDry;
 
   return (
     <Card sx={{
@@ -84,10 +115,14 @@ export const TimerCard: React.FC<TimerProps> = ({
         <Typography variant="h6" fontWeight="bold">{cropName}</Typography>
         <Divider sx={{ my: 1 }} />
 
-        {/* 수확 타이머 */}
         <Typography variant="caption" color="text.secondary">예상 수확 시간</Typography>
         <Typography variant="body1"
-          color={!isWatered ? 'text.disabled' : harvestLeft > 0 ? 'text.primary' : 'success.main'}
+          color={
+            !isWatered ? 'text.disabled'
+            : harvestLeft <= 0 ? 'success.main'
+            : isDry ? 'warning.main'
+            : 'text.primary'
+          }
           fontWeight="500">
           {!isWatered
             ? '💧 물을 먼저 주세요'
@@ -98,10 +133,13 @@ export const TimerCard: React.FC<TimerProps> = ({
             : '🎉 수확 가능!'}
         </Typography>
 
-        {/* 물 주기 타이머 */}
         <Box sx={{
           mt: 2, p: 1, borderRadius: 1,
-          bgcolor: isDry ? 'rgba(255,152,0,0.2)' : 'rgba(33,150,243,0.1)'
+          bgcolor: isDry
+            ? 'rgba(255,152,0,0.2)'
+            : isWatered
+            ? 'rgba(33,150,243,0.1)'
+            : 'rgba(200,200,200,0.1)'
         }}>
           <Typography variant="caption" color="primary">다음 물 주기</Typography>
           <Typography variant="h6"
@@ -109,11 +147,20 @@ export const TimerCard: React.FC<TimerProps> = ({
             sx={{ fontSize: '1.1rem' }}>
             {isDry ? '🌵 말랐음!' : isWatered ? formatTime(waterLeft) : '대기 중'}
           </Typography>
+
           <Button
-            size="small" variant="contained" fullWidth sx={{ mt: 1 }}
-            onClick={handleWater}
+            size="small"
+            variant="contained"
+            fullWidth
+            sx={{ mt: 1 }}
+            onClick={handleWaterClick}
+            disabled={isButtonDisabled}
             color={isDry ? 'warning' : 'primary'}>
-            {isWatered ? '물 주기 완료 ✅' : '🌱 첫 물 주기 (시작)'}
+            {!isWatered
+              ? '🌱 첫 물 주기 (시작)'
+              : isDry
+              ? '💧 물 주기'
+              : '✅ 물 줌 (대기 중)'}
           </Button>
         </Box>
 

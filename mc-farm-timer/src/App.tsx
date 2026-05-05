@@ -18,14 +18,16 @@ function App() {
   const [season, setSeason] = useState(initialServerTime.season);
 
   // 2. 타이머 상태 (waterTime 포함하여 한 번만 선언!)
-  const [timers, setTimers] = useState<{ name: string; growthMinutes: number; waterInterval: number; }[]>(() => {
-  const saved = localStorage.getItem('mc_timers');
-  if (!saved) return [];
-  try {
+  const [timers, setTimers] = useState<{ name: string; growthMinutes: number; waterInterval: number; plantedAt: string; lastWateredAt: string | null; }[]>(() => {
+    const saved = localStorage.getItem('mc_timers');
+    if (!saved) return [];
+    try {
     return JSON.parse(saved).map((t: any) => ({
-      name: t.name,
-      growthMinutes: t.growthMinutes,
-      waterInterval: t.waterInterval,
+      ...t,
+      // ✅ "null" 문자열이나 빈값이면 null로 보정
+      lastWateredAt: t.lastWateredAt && t.lastWateredAt !== 'null' 
+        ? t.lastWateredAt 
+        : null,
     }));
   } catch { return []; }
 });
@@ -45,10 +47,12 @@ function App() {
     if (crop) {
       const growthMins = getGrowthMinutes(crop.baseGrowthDays, season, crop.season);
       const waterInterval = season === '여름' ? 24 : 48;
-      setTimers([...timers, {
+      setTimers(prev => [...prev, { // ✅ prev 사용
         name: crop.name,
         growthMinutes: growthMins,
         waterInterval: waterInterval,
+        plantedAt: new Date().toISOString(), // 심은 시각 저장
+        lastWateredAt: null, // ✅ 명시적 null
       }]);
     }
   };
@@ -74,14 +78,18 @@ function App() {
 
   // 5. 물 주기 버튼 클릭 핸들러 (시간 갱신)
   const handleWatering = (index: number) => {
-    const newTimers = [...timers];
-    // 현재 시간을 기준으로 다음 물 주기 시간 업데이트
-    newTimers[index].waterTime = getNextWateringTime(new Date(), season);
-    setTimers(newTimers);
-  };
+  setTimers(prev => {
+    const newTimers = [...prev];
+    newTimers[index] = {
+      ...newTimers[index],
+      lastWateredAt: new Date().toISOString(),
+    };
+    return newTimers;
+  });
+};
 
   const removeTimer = (index: number) => {
-    setTimers(timers.filter((_, i) => i !== index));
+    setTimers(prev => prev.filter((_, i) => i !== index)); // ✅ prev 사용
   };
 
   // 6. UI 렌더링 (Return)
@@ -130,6 +138,8 @@ function App() {
               cropName={t.name}
               growthMinutes={t.growthMinutes}
               waterInterval={t.waterInterval}
+              plantedAt={t.plantedAt}
+              onWater={() => handleWatering(idx)}
               onRemove={() => removeTimer(idx)}
             />
           </Grid>
