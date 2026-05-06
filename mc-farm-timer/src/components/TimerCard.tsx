@@ -28,6 +28,7 @@ export const TimerCard: React.FC<TimerProps> = ({
 
   // ✅ 물 줬는지 여부 - ref로 관리해서 클로저 문제 없애기
   const isWateredRef = useRef(isValidDate(lastWateredAt));
+<<<<<<< Updated upstream
   const isDryRef = useRef(false);
   const waterLeftRef = useRef(
     isValidDate(lastWateredAt)
@@ -38,6 +39,27 @@ export const TimerCard: React.FC<TimerProps> = ({
     isValidDate(lastWateredAt)
       ? Math.max(0, totalHarvestSecs - Math.floor((Date.now() - new Date(plantedAt).getTime()) / 1000))
       : totalHarvestSecs
+=======
+
+  const isDryRef = useRef(false);
+
+  // waterLeft 초기값: 물 준 적 있으면 경과시간 계산, 없으면 그냥 전체 interval
+  const waterLeftRef = useRef(
+    isValidDate(lastWateredAt)
+      ? Math.max(0, waterIntervalSecs - Math.floor(
+        (Date.now() - new Date(lastWateredAt!).getTime()) / 1000
+      ))
+      : waterIntervalSecs
+  );
+
+  // harvestLeft 초기값: 물 준 적 있으면 plantedAt 기준 계산, 없으면 전체 시간 고정
+  const harvestLeftRef = useRef(
+    isValidDate(lastWateredAt)
+      ? Math.max(0, totalHarvestSecs - Math.floor(
+        (Date.now() - new Date(plantedAt).getTime()) / 1000
+      ))
+      : totalHarvestSecs  // ✅ 물 안 줬으면 전체 시간 그대로
+>>>>>>> Stashed changes
   );
 
   const [isWatered, setIsWatered] = useState(isWateredRef.current);
@@ -85,7 +107,18 @@ export const TimerCard: React.FC<TimerProps> = ({
     if (Notification.permission === 'default') {
       Notification.requestPermission();
     }
+<<<<<<< Updated upstream
     // ✅ ref 직접 업데이트 → 클로저 문제 없음
+=======
+
+    const now = Date.now();
+    const plantedTime = new Date(plantedAt).getTime();
+
+    // ✅ 물 줄 때 기준으로 수확 남은 시간 재계산
+    const elapsedSincePlanted = Math.floor((now - plantedTime) / 1000);
+    harvestLeftRef.current = Math.max(0, totalHarvestSecs - elapsedSincePlanted);
+
+>>>>>>> Stashed changes
     isWateredRef.current = true;
     isDryRef.current = false;
     waterLeftRef.current = waterIntervalSecs;
@@ -93,8 +126,16 @@ export const TimerCard: React.FC<TimerProps> = ({
     setIsWatered(true);
     setIsDry(false);
     setWaterLeft(waterIntervalSecs);
+<<<<<<< Updated upstream
     onWater(); // App.tsx에 lastWateredAt 저장
   };
+=======
+    setHarvestLeft(harvestLeftRef.current); // ✅ 즉시 화면에 반영
+    onWater();
+  };
+
+  
+>>>>>>> Stashed changes
 
   const formatTime = (seconds: number) => {
     if (seconds <= 0) return '0분 0초';

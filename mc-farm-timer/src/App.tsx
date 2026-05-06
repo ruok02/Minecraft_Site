@@ -1,16 +1,26 @@
 import { useState, useEffect } from 'react';
-import { Container, Typography, Select, MenuItem, Button, Grid, Box, FormControl, InputLabel, Paper } from '@mui/material';
+import { Container, Typography, Button, Grid, Box, Paper } from '@mui/material';
 import { CROPS } from './data/crops';
 import { getServerTime, getGrowthMinutes } from './utils/calcTime';
 import { TimerCard } from './components/TimerCard';
 
-// 계절 이미지 import
 import SpringIcon from './assets/season/Spring.png';
 import SummerIcon from './assets/season/Summer.png';
 import AutumnIcon from './assets/season/Autumn.png';
 import WinterIcon from './assets/season/Winter.png';
 
+type Season = '봄' | '여름' | '가을' | '겨울';
+
+interface TimerEntry {
+  name: string;
+  growthMinutes: number;
+  waterInterval: number;
+  plantedAt: string;
+  lastWateredAt: string | null;
+}
+
 function App() {
+<<<<<<< Updated upstream
 
   // 1. 초기 서버 시간 및 계절 계산 (딜레이 방지)
   const initialServerTime = getServerTime();
@@ -31,15 +41,34 @@ function App() {
     }));
   } catch { return []; }
 });
+=======
+  const initialServerTime = getServerTime();
+  const [currentInGameTime, setCurrentInGameTime] = useState(initialServerTime);
+  const [season, setSeason] = useState<Season>(initialServerTime.season);
 
-  // 계절 이미지 매핑
-  const seasonImages = {
+  const [timers, setTimers] = useState<TimerEntry[]>(() => {
+    const saved = localStorage.getItem('mc_timers');
+    if (!saved) return [];
+    try {
+      return JSON.parse(saved).map((t: any) => ({
+        name: t.name,
+        growthMinutes: t.growthMinutes,
+        waterInterval: t.waterInterval,
+        plantedAt: t.plantedAt,
+        lastWateredAt: t.lastWateredAt ?? null,
+      }));
+    } catch { return []; }
+  });
+>>>>>>> Stashed changes
+
+  const seasonImages: Record<Season, string> = {
     '봄': SpringIcon,
     '여름': SummerIcon,
     '가을': AutumnIcon,
     '겨울': WinterIcon,
   };
 
+<<<<<<< Updated upstream
   // 2. addTimer 함수 수정 (최초 심을 때 물 주기 시간 계산)
   // addTimer 수정 - cropSeason 정보도 넘겨야 함
   const addTimer = (cropId: string) => {
@@ -58,6 +87,9 @@ function App() {
   };
 
   // 3. 실시간 업데이트 로직
+=======
+  // 실시간 서버 시간 업데이트
+>>>>>>> Stashed changes
   useEffect(() => {
     const timer = setInterval(() => {
       const serverTime = getServerTime();
@@ -69,10 +101,15 @@ function App() {
     return () => clearInterval(timer);
   }, [season]);
 
+<<<<<<< Updated upstream
+=======
+  // localStorage 저장
+>>>>>>> Stashed changes
   useEffect(() => {
     localStorage.setItem('mc_timers', JSON.stringify(timers));
   }, [timers]);
 
+<<<<<<< Updated upstream
   // 4. 핸들러 함수들 (중복 선언 제거됨)
   // (기존에 중복 선언되었던 addTimer 함수는 위 2번 영역에서 통합 관리하므로 삭제되었습니다.)
 
@@ -93,6 +130,39 @@ function App() {
   };
 
   // 6. UI 렌더링 (Return)
+=======
+  const addTimer = (cropId: string) => {
+    const crop = CROPS.find(c => c.id === cropId);
+    if (crop) {
+      const growthMins = getGrowthMinutes(crop.baseGrowthDays, season, crop.season);
+      const waterInterval = season === '여름' ? 24 : 48;
+      setTimers(prev => [...prev, {
+        name: crop.name,
+        growthMinutes: growthMins,
+        waterInterval: waterInterval,
+        plantedAt: new Date().toISOString(),
+        lastWateredAt: null,
+      }]);
+    }
+  };
+
+  // ✅ 물 주기 핸들러 - lastWateredAt 현재 시각으로 업데이트
+  const handleWatering = (index: number) => {
+    setTimers(prev => {
+      const newTimers = [...prev];
+      newTimers[index] = {
+        ...newTimers[index],
+        lastWateredAt: new Date().toISOString(),
+      };
+      return newTimers;
+    });
+  };
+
+  const removeTimer = (index: number) => {
+    setTimers(prev => prev.filter((_, i) => i !== index));
+  };
+
+>>>>>>> Stashed changes
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* 실시간 서버 시간 위젯 */}
@@ -139,6 +209,10 @@ function App() {
               growthMinutes={t.growthMinutes}
               waterInterval={t.waterInterval}
               plantedAt={t.plantedAt}
+<<<<<<< Updated upstream
+=======
+              lastWateredAt={t.lastWateredAt}
+>>>>>>> Stashed changes
               onWater={() => handleWatering(idx)}
               onRemove={() => removeTimer(idx)}
             />
