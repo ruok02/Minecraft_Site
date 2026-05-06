@@ -20,28 +20,6 @@ interface TimerEntry {
 }
 
 function App() {
-<<<<<<< Updated upstream
-
-  // 1. 초기 서버 시간 및 계절 계산 (딜레이 방지)
-  const initialServerTime = getServerTime();
-  const [currentInGameTime, setCurrentInGameTime] = useState(initialServerTime);
-  const [season, setSeason] = useState(initialServerTime.season);
-
-  // 2. 타이머 상태 (waterTime 포함하여 한 번만 선언!)
-  const [timers, setTimers] = useState<{ name: string; growthMinutes: number; waterInterval: number; plantedAt: string; lastWateredAt: string | null; }[]>(() => {
-    const saved = localStorage.getItem('mc_timers');
-    if (!saved) return [];
-    try {
-    return JSON.parse(saved).map((t: any) => ({
-      ...t,
-      // ✅ "null" 문자열이나 빈값이면 null로 보정
-      lastWateredAt: t.lastWateredAt && t.lastWateredAt !== 'null' 
-        ? t.lastWateredAt 
-        : null,
-    }));
-  } catch { return []; }
-});
-=======
   const initialServerTime = getServerTime();
   const [currentInGameTime, setCurrentInGameTime] = useState(initialServerTime);
   const [season, setSeason] = useState<Season>(initialServerTime.season);
@@ -59,7 +37,6 @@ function App() {
       }));
     } catch { return []; }
   });
->>>>>>> Stashed changes
 
   const seasonImages: Record<Season, string> = {
     '봄': SpringIcon,
@@ -68,28 +45,7 @@ function App() {
     '겨울': WinterIcon,
   };
 
-<<<<<<< Updated upstream
-  // 2. addTimer 함수 수정 (최초 심을 때 물 주기 시간 계산)
-  // addTimer 수정 - cropSeason 정보도 넘겨야 함
-  const addTimer = (cropId: string) => {
-    const crop = CROPS.find(c => c.id === cropId);
-    if (crop) {
-      const growthMins = getGrowthMinutes(crop.baseGrowthDays, season, crop.season);
-      const waterInterval = season === '여름' ? 24 : 48;
-      setTimers(prev => [...prev, { // ✅ prev 사용
-        name: crop.name,
-        growthMinutes: growthMins,
-        waterInterval: waterInterval,
-        plantedAt: new Date().toISOString(), // 심은 시각 저장
-        lastWateredAt: null, // ✅ 명시적 null
-      }]);
-    }
-  };
-
-  // 3. 실시간 업데이트 로직
-=======
   // 실시간 서버 시간 업데이트
->>>>>>> Stashed changes
   useEffect(() => {
     const timer = setInterval(() => {
       const serverTime = getServerTime();
@@ -101,36 +57,11 @@ function App() {
     return () => clearInterval(timer);
   }, [season]);
 
-<<<<<<< Updated upstream
-=======
   // localStorage 저장
->>>>>>> Stashed changes
   useEffect(() => {
     localStorage.setItem('mc_timers', JSON.stringify(timers));
   }, [timers]);
 
-<<<<<<< Updated upstream
-  // 4. 핸들러 함수들 (중복 선언 제거됨)
-  // (기존에 중복 선언되었던 addTimer 함수는 위 2번 영역에서 통합 관리하므로 삭제되었습니다.)
-
-  // 5. 물 주기 버튼 클릭 핸들러 (시간 갱신)
-  const handleWatering = (index: number) => {
-  setTimers(prev => {
-    const newTimers = [...prev];
-    newTimers[index] = {
-      ...newTimers[index],
-      lastWateredAt: new Date().toISOString(),
-    };
-    return newTimers;
-  });
-};
-
-  const removeTimer = (index: number) => {
-    setTimers(prev => prev.filter((_, i) => i !== index)); // ✅ prev 사용
-  };
-
-  // 6. UI 렌더링 (Return)
-=======
   const addTimer = (cropId: string) => {
     const crop = CROPS.find(c => c.id === cropId);
     if (crop) {
@@ -162,7 +93,6 @@ function App() {
     setTimers(prev => prev.filter((_, i) => i !== index));
   };
 
->>>>>>> Stashed changes
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* 실시간 서버 시간 위젯 */}
@@ -184,13 +114,24 @@ function App() {
         <Typography variant="h3" fontWeight="bold" color="primary" gutterBottom>
           심야 농사 타이머
         </Typography>
-        <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 4 }}>
+        <Typography variant="subtitle1" sx={{ mb: 4, color: '#ffffff' }}>
           여름엔 24분, 그 외 계절엔 48분 주기로 물 주기를 알려드립니다.
         </Typography>
       </Paper>
 
-      <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold' }}>🌱 작물 심기</Typography>
-      <Grid container spacing={1} sx={{ mb: 6 }}>
+      <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold', color: '#ffff', textAlign: 'center' }}>🌱 작물 심기</Typography>
+      <Grid
+        container
+        spacing={1}
+        sx={{
+          mb: 6,
+          display: 'flex',          // Flexbox 활성화
+          justifyContent: 'center', // 가로 중앙 정렬
+          alignItems: 'center',     // 세로 중앙 정렬 (필요 시)
+          width: '100%',            // 컨테이너 너비를 꽉 채움
+          ml: 0                     // Grid 특유의 왼쪽 마이너스 마진 제거 (정밀한 중앙 정렬용)
+        }}
+      >
         {CROPS.filter(c => c.season === season).map(crop => (
           <Grid item key={crop.id}>
             <Button variant="contained" color="secondary" onClick={() => addTimer(crop.id)}>
@@ -200,7 +141,7 @@ function App() {
         ))}
       </Grid>
 
-      <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold' }}>🧺 내 밭 현황</Typography>
+      <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold', color: '#ffff' }}>🧺 내 밭 현황</Typography>
       <Grid container spacing={2}>
         {timers.map((t, idx) => (
           <Grid item xs={12} sm={6} md={4} key={idx}>
@@ -209,10 +150,7 @@ function App() {
               growthMinutes={t.growthMinutes}
               waterInterval={t.waterInterval}
               plantedAt={t.plantedAt}
-<<<<<<< Updated upstream
-=======
               lastWateredAt={t.lastWateredAt}
->>>>>>> Stashed changes
               onWater={() => handleWatering(idx)}
               onRemove={() => removeTimer(idx)}
             />
