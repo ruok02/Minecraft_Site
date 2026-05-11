@@ -36,24 +36,13 @@ export const getGrowthMinutes = (
   const baseMins = baseDays * 48;
   const isInSeason = currentSeason === cropSeason;
 
-  let growthMins = baseMins;
+  let rate = 1.0; // 기본 100%
 
-  // Step1: 제철 보너스 +50%
-  if (isInSeason) {
-    growthMins = growthMins * 0.5;
-  }
+  if (isInSeason) rate += 0.5;      // 제철 +50%
+  if (currentSeason === '봄') rate += 0.2;   // 봄 +20%
+  if (currentSeason === '겨울') rate -= 0.5; // 겨울 -50%
 
-  // Step2: 봄 추가 보너스 +20%
-  if (currentSeason === '봄') {
-    growthMins = growthMins * 0.8;
-  }
-
-  // Step3: 겨울 패널티 (baseMins의 절반을 더함)
-  if (currentSeason === '겨울') {
-    growthMins = growthMins + baseMins * 0.5;
-  }
-
-  return growthMins;
+  return baseMins / rate;
 };
 
 export const getHarvestTime = (

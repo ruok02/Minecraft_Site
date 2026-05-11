@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Container, Typography, Button, Grid, Box, Paper } from '@mui/material';
+import { Container, Typography, Button, Grid, Box, Paper, Tab, Tabs } from '@mui/material';
 import { CROPS } from './data/crops';
 import { getServerTime, getGrowthMinutes } from './utils/calcTime';
 import { TimerCard } from './components/TimerCard';
@@ -19,10 +19,22 @@ interface TimerEntry {
   lastWateredAt: string | null;
 }
 
+const SEASON_LIST: Season[] = ['봄', '여름', '가을', '겨울'];
+
+const seasonImages: Record<Season, string> = {
+  '봄': SpringIcon,
+  '여름': SummerIcon,
+  '가을': AutumnIcon,
+  '겨울': WinterIcon,
+};
+
 function App() {
   const initialServerTime = getServerTime();
   const [currentInGameTime, setCurrentInGameTime] = useState(initialServerTime);
   const [season, setSeason] = useState<Season>(initialServerTime.season);
+  
+  // 작물 탭 - 기본값은 현재 계절
+  const [selectedTab, setSelectedTab] = useState<Season>(initialServerTime.season);
 
   const [timers, setTimers] = useState<TimerEntry[]>(() => {
     const saved = localStorage.getItem('mc_timers');
@@ -38,14 +50,6 @@ function App() {
     } catch { return []; }
   });
 
-  const seasonImages: Record<Season, string> = {
-    '봄': SpringIcon,
-    '여름': SummerIcon,
-    '가을': AutumnIcon,
-    '겨울': WinterIcon,
-  };
-
-  // 실시간 서버 시간 업데이트
   useEffect(() => {
     const timer = setInterval(() => {
       const serverTime = getServerTime();
@@ -57,7 +61,6 @@ function App() {
     return () => clearInterval(timer);
   }, [season]);
 
-  // localStorage 저장
   useEffect(() => {
     localStorage.setItem('mc_timers', JSON.stringify(timers));
   }, [timers]);
@@ -77,7 +80,6 @@ function App() {
     }
   };
 
-  // ✅ 물 주기 핸들러 - lastWateredAt 현재 시각으로 업데이트
   const handleWatering = (index: number) => {
     setTimers(prev => {
       const newTimers = [...prev];
@@ -95,16 +97,12 @@ function App() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* 실시간 서버 시간 위젯 */}
+      {/* 서버 시간 위젯 */}
       <Box sx={{
         display: 'flex', justifyContent: 'center', alignItems: 'center',
         gap: 2, mb: 4, p: 2, borderRadius: 2, bgcolor: 'rgba(0,0,0,0.05)'
       }}>
-        <img
-          src={seasonImages[season]}
-          alt={season}
-          style={{ width: 40, height: 40, objectFit: 'contain' }}
-        />
+        <img src={seasonImages[season]} alt={season} style={{ width: 40, height: 40, objectFit: 'contain' }} />
         <Typography variant="h5" sx={{ fontWeight: 'bold', fontFamily: 'monospace' }}>
           {currentInGameTime.season} {currentInGameTime.day}일 {currentInGameTime.hour}:{currentInGameTime.minute}
         </Typography>
@@ -114,34 +112,65 @@ function App() {
         <Typography variant="h3" fontWeight="bold" color="primary" gutterBottom>
           심야 농사 타이머
         </Typography>
-        <Typography variant="subtitle1" sx={{ mb: 4, color: '#ffffff' }}>
+        <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 4 }}>
           여름엔 24분, 그 외 계절엔 48분 주기로 물 주기를 알려드립니다.
         </Typography>
       </Paper>
 
-      <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold', color: '#ffff', textAlign: 'center' }}>🌱 작물 심기</Typography>
-      <Grid
-        container
-        spacing={1}
-        sx={{
-          mb: 6,
-          display: 'flex',          // Flexbox 활성화
-          justifyContent: 'center', // 가로 중앙 정렬
-          alignItems: 'center',     // 세로 중앙 정렬 (필요 시)
-          width: '100%',            // 컨테이너 너비를 꽉 채움
-          ml: 0                     // Grid 특유의 왼쪽 마이너스 마진 제거 (정밀한 중앙 정렬용)
-        }}
-      >
-        {CROPS.filter(c => c.season === season).map(crop => (
-          <Grid item key={crop.id}>
-            <Button variant="contained" color="secondary" onClick={() => addTimer(crop.id)}>
-              {crop.name}
-            </Button>
-          </Grid>
-        ))}
-      </Grid>
+      {/* 작물 심기 - 계절 탭 */}
+      <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold' }}>🌱 작물 심기</Typography>
+      <Paper elevation={1} sx={{ mb: 4, borderRadius: 2, overflow: 'hidden' }}>
+        {/* 계절 탭 */}
+        <Tabs
+          value={selectedTab}
+          onChange={(_, val) => setSelectedTab(val)}
+          variant="fullWidth"
+          sx={{ borderBottom: 1, borderColor: 'divider' }}
+        >
+          {SEASON_LIST.map(s => (
+            <Tab
+              key={s}
+              value={s}
+              label={
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <img src={seasonImages[s]} alt={s} style={{ width: 20, height: 20, objectFit: 'contain' }} />
+                  <span>{s}</span>
+                  {/* 현재 계절 표시 */}
+                  {s === season && (
+                    <Typography variant="caption" sx={{
+                      bgcolor: 'primary.main', color: 'white',
+                      px: 0.8, py: 0.1, borderRadius: 1, fontSize: '0.6rem'
+                    }}>
+                      현재
+                    </Typography>
+                  )}
+                </Box>
+              }
+            />
+          ))}
+        </Tabs>
 
-      <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold', color: '#ffff' }}>🧺 내 밭 현황</Typography>
+        {/* 선택된 계절 작물 버튼 */}
+        <Box sx={{ p: 2 }}>
+          <Grid container spacing={1}>
+            {CROPS.filter(c => c.season === selectedTab).map(crop => (
+              <Grid item key={crop.id}>
+                <Button
+                  variant={selectedTab === season ? 'contained' : 'outlined'}
+                  color="secondary"
+                  onClick={() => addTimer(crop.id)}
+                  sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                >
+                  {crop.name}
+                </Button>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      </Paper>
+
+      {/* 내 밭 현황 */}
+      <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold' }}>🧺 내 밭 현황</Typography>
       <Grid container spacing={2}>
         {timers.map((t, idx) => (
           <Grid item xs={12} sm={6} md={4} key={idx}>
