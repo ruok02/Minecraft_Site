@@ -201,13 +201,17 @@ export const TimerCard: React.FC<TimerProps> = ({
     }
   };
 
+  const formatSeconds = (seconds: number) => {
+    const totalSecs = Math.ceil(seconds);
+    if (totalSecs <= 0) return '0분 0초';
+    const m = Math.floor(totalSecs / 60);
+    const s = totalSecs % 60;
+    return `${m}분 ${s}초`;
+  };
+
   const formatTime = (points: number) => {
     const currentRate = getCurrentRate(currentServerSeason, cropSeason);
-    const estimatedSeconds = Math.ceil(points / currentRate);
-    if (estimatedSeconds <= 0) return '0분 0초';
-    const m = Math.floor(estimatedSeconds / 60);
-    const s = estimatedSeconds % 60;
-    return `${m}분 ${s}초`;
+    return formatSeconds(points / currentRate);
   };
 
   return (
@@ -271,7 +275,7 @@ export const TimerCard: React.FC<TimerProps> = ({
         <Box sx={{ mt: 2, p: 1, borderRadius: 1, bgcolor: isDry ? 'rgba(255,152,0,0.2)' : isStarted ? 'rgba(33,150,243,0.1)' : 'rgba(200,200,200,0.1)' }}>
           <Typography variant="caption" color="primary">다음 물 주기</Typography>
           <Typography variant="h6" color={isDry ? 'error' : 'primary'} sx={{ fontSize: '1.1rem' }}>
-            {isStarted && !isDry ? `${Math.floor(waterLeft / 60)}분 ${Math.floor(waterLeft % 60)}초` : isDry ? '🌵 말랐음!' : '대기 중'}
+            {isStarted && !isDry ? formatSeconds(waterLeft) : isDry ? '🌵 말랐음!' : '대기 중'}
           </Typography>
           <Button size="small" variant="contained" fullWidth sx={{ mt: 1 }} onClick={handleWaterClick} disabled={isStarted && !isDry} color={isDry ? 'warning' : 'primary'}>
             {!isStarted ? '🌱 첫 물 주기 (시작)' : isDry ? '💧 물 주기' : '✅ 물 줌 (대기 중)'}
