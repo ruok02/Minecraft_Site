@@ -44,4 +44,7 @@ export const CROPS: Crop[] = [
   { id: 'lemon', name: '레몬', baseGrowthDays: 3, season: '겨울' },
   { id: 'garlic', name: '마늘', baseGrowthDays: 4, season: '겨울' },
   { id: 'orange', name: '오렌지', baseGrowthDays: 5, season: '겨울' },
+
+  // 🧪 테스트용
+  { id: 'test_crop', name: '테스트(1분)', baseGrowthDays: 0.03125, season: '여름' },
 ];

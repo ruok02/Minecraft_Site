@@ -12,13 +12,17 @@ import WinterIcon from './assets/season/Winter.png';
 type Season = '봄' | '여름' | '가을' | '겨울';
 
 interface TimerEntry {
+  uid: string;
   id: string;
   name: string;
-  growthMinutes: number;
+  growthMinutes: number; // Wiki 기준 기본 분 (baseDays * 48)
   waterInterval: number;
-  plantedAt: string;
-  lastWateredAt: string | null;
-  season: Season;
+  harvestPoints: number; // 남은 성장 포인트 (가중치 1.0 기준의 초)
+  remainingWaterSecs: number;
+  lastUpdatedAt: string;
+  isDry: boolean;
+  isStarted: boolean;
+  season: Season; // 작물의 계절
 }
 
 const SEASON_LIST: Season[] = ['봄', '여름', '가을', '겨울'];
@@ -31,6 +35,7 @@ const seasonImages: Record<Season, string> = {
 };
 
 const getCropImageUrl = (season: string, name: string) => {
+  if (name.includes('테스트')) return '';
   return new URL(`./assets/crops/${season}/${name}.png`, import.meta.url).href;
 };
 
@@ -46,15 +51,22 @@ function App() {
     const saved = localStorage.getItem('mc_timers');
     if (!saved) return [];
     try {
-      return JSON.parse(saved).map((t: any) => ({
-        id: t.id || '',
-        name: t.name,
-        growthMinutes: t.growthMinutes,
-        waterInterval: t.waterInterval,
-        plantedAt: t.plantedAt,
-        lastWateredAt: t.lastWateredAt ?? null,
-        season: t.season || '봄',
-      }));
+      return JSON.parse(saved).map((t: any) => {
+        const baseMins = t.growthMinutes || (CROPS.find(c => c.name === t.name)?.baseGrowthDays || 1) * 48;
+        return {
+          uid: t.uid || crypto.randomUUID(),
+          id: t.id || '',
+          name: t.name,
+          growthMinutes: baseMins,
+          waterInterval: t.waterInterval,
+          harvestPoints: t.harvestPoints ?? (t.remainingHarvestSecs ?? baseMins * 60),
+          remainingWaterSecs: t.remainingWaterSecs ?? (t.waterInterval * 60),
+          lastUpdatedAt: t.lastUpdatedAt ?? new Date().toISOString(),
+          isDry: t.isDry ?? false,
+          isStarted: t.isStarted ?? false,
+          season: t.season || '봄',
+        };
+      });
     } catch { return []; }
   });
 
@@ -76,33 +88,40 @@ function App() {
   const addTimer = (cropId: string) => {
     const crop = CROPS.find(c => c.id === cropId);
     if (crop) {
-      const growthMins = getGrowthMinutes(crop.baseGrowthDays, season, crop.season);
-      const waterInterval = season === '여름' ? 24 : 48;
+      const baseMins = crop.baseGrowthDays * 48;
+      const waterInterval = crop.id === 'test_crop' ? 0.5 : (season === '여름' ? 24 : 48);
       setTimers(prev => [...prev, {
+        uid: crypto.randomUUID(),
         id: crop.id,
         name: crop.name,
-        growthMinutes: growthMins,
+        growthMinutes: baseMins,
         waterInterval: waterInterval,
-        plantedAt: new Date().toISOString(),
-        lastWateredAt: null,
+        harvestPoints: Math.floor(baseMins * 60), // 가중치 1.0 기준의 총 포인트
+        remainingWaterSecs: Math.floor(waterInterval * 60),
+        lastUpdatedAt: new Date().toISOString(),
+        isDry: false,
+        isStarted: false,
         season: crop.season,
       }]);
     }
   };
 
-  const handleWatering = (index: number) => {
+  const updateTimer = (uid: string, updates: Partial<TimerEntry>) => {
     setTimers(prev => {
       const newTimers = [...prev];
-      newTimers[index] = {
-        ...newTimers[index],
-        lastWateredAt: new Date().toISOString(),
+      const index = newTimers.findIndex(t => t.uid === uid);
+      if (index === -1) return prev;
+      newTimers[index] = { 
+        ...newTimers[index], 
+        ...updates,
+        lastUpdatedAt: new Date().toISOString() 
       };
       return newTimers;
     });
   };
 
-  const removeTimer = (index: number) => {
-    setTimers(prev => prev.filter((_, i) => i !== index));
+  const removeTimer = (uid: string) => {
+    setTimers(prev => prev.filter(t => t.uid !== uid));
   };
 
   return (
@@ -169,10 +188,30 @@ function App() {
                   variant={selectedTab === season ? 'contained' : 'outlined'}
                   color="secondary"
                   onClick={() => addTimer(crop.id)}
-                  sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                  sx={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 1,
+                    textTransform: 'none' // 한국어 폰트 유지 및 소문자 방지
+                  }}
                   startIcon={<img src={getCropImageUrl(crop.season, crop.name)} alt={crop.name} style={{ width: 20, height: 20, objectFit: 'contain' }} />}
                 >
-                  {crop.name}
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                      {crop.name}
+                    </Typography>
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        fontSize: '0.65rem', // 기존 body2(약 0.875rem)보다 약 5px 작게 조정
+                        opacity: 0.9,
+                        color: selectedTab === season ? 'secondary.contrastText' : 'secondary.main',
+                        filter: 'brightness(1.2)' // 대비를 위한 약간의 조정
+                      }}
+                    >
+                      {crop.baseGrowthDays}일
+                    </Typography>
+                  </Box>
                 </Button>
               </Grid>
             ))}
@@ -183,17 +222,21 @@ function App() {
       {/* 내 밭 현황 */}
       <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold' }}>🧺 내 밭 현황</Typography>
       <Grid container spacing={2}>
-        {timers.map((t, idx) => (
-          <Grid item xs={12} sm={6} md={4} key={idx}>
+        {timers.map((t) => (
+          <Grid item xs={12} sm={6} md={4} key={t.uid}>
             <TimerCard
               cropName={t.name}
               cropImageUrl={getCropImageUrl(t.season, t.name)}
-              growthMinutes={t.growthMinutes}
+              cropSeason={t.season}
+              currentServerSeason={season}
+              initialHarvestPoints={t.harvestPoints}
+              initialRemainingWater={t.remainingWaterSecs}
+              initialIsDry={t.isDry}
+              initialIsStarted={t.isStarted}
+              lastUpdatedAt={t.lastUpdatedAt}
               waterInterval={t.waterInterval}
-              plantedAt={t.plantedAt}
-              lastWateredAt={t.lastWateredAt}
-              onWater={() => handleWatering(idx)}
-              onRemove={() => removeTimer(idx)}
+              onStatusChange={(updates) => updateTimer(t.uid, updates)}
+              onRemove={() => removeTimer(t.uid)}
             />
           </Grid>
         ))}
