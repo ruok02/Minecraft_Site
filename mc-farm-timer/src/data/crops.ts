@@ -3,7 +3,7 @@ export interface Crop {
   name: string;
   baseGrowthDays: number; // 위키에 적힌 기본 성장 일수
   season: '봄' | '여름' | '가을' | '겨울';
-  imagePath?: string;
+  imagePath: string;
 }
 
 export const CROPS: Crop[] = [

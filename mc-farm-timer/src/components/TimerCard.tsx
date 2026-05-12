@@ -3,6 +3,7 @@ import { Card, CardContent, Typography, Button, Box, Divider } from '@mui/materi
 
 interface TimerProps {
   cropName: string;
+  cropImageUrl?: string;
   growthMinutes: number;
   waterInterval: number;
   plantedAt: string;
@@ -13,6 +14,7 @@ interface TimerProps {
 
 export const TimerCard: React.FC<TimerProps> = ({
   cropName,
+  cropImageUrl,
   growthMinutes,
   waterInterval,
   plantedAt,
@@ -113,8 +115,6 @@ export const TimerCard: React.FC<TimerProps> = ({
     onWater();
   };
 
-  
-
   const formatTime = (seconds: number) => {
     if (seconds <= 0) return '0분 0초';
     const m = Math.floor(seconds / 60);
@@ -131,7 +131,10 @@ export const TimerCard: React.FC<TimerProps> = ({
       borderColor: isDry ? 'error.main' : isWatered ? 'primary.main' : 'grey.400'
     }}>
       <CardContent>
-        <Typography variant="h6" fontWeight="bold">{cropName}</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {cropImageUrl && <img src={cropImageUrl} alt={cropName} style={{ width: 24, height: 24, objectFit: 'contain' }} />}
+          <Typography variant="h6" fontWeight="bold">{cropName}</Typography>
+        </Box>
         <Divider sx={{ my: 1 }} />
 
         <Typography variant="caption" color="text.secondary">예상 수확 시간</Typography>

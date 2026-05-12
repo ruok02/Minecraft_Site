@@ -12,11 +12,13 @@ import WinterIcon from './assets/season/Winter.png';
 type Season = '봄' | '여름' | '가을' | '겨울';
 
 interface TimerEntry {
+  id: string;
   name: string;
   growthMinutes: number;
   waterInterval: number;
   plantedAt: string;
   lastWateredAt: string | null;
+  season: Season;
 }
 
 const SEASON_LIST: Season[] = ['봄', '여름', '가을', '겨울'];
@@ -26,6 +28,10 @@ const seasonImages: Record<Season, string> = {
   '여름': SummerIcon,
   '가을': AutumnIcon,
   '겨울': WinterIcon,
+};
+
+const getCropImageUrl = (season: string, name: string) => {
+  return new URL(`./assets/crops/${season}/${name}.png`, import.meta.url).href;
 };
 
 function App() {
@@ -41,11 +47,13 @@ function App() {
     if (!saved) return [];
     try {
       return JSON.parse(saved).map((t: any) => ({
+        id: t.id || '',
         name: t.name,
         growthMinutes: t.growthMinutes,
         waterInterval: t.waterInterval,
         plantedAt: t.plantedAt,
         lastWateredAt: t.lastWateredAt ?? null,
+        season: t.season || '봄',
       }));
     } catch { return []; }
   });
@@ -71,11 +79,13 @@ function App() {
       const growthMins = getGrowthMinutes(crop.baseGrowthDays, season, crop.season);
       const waterInterval = season === '여름' ? 24 : 48;
       setTimers(prev => [...prev, {
+        id: crop.id,
         name: crop.name,
         growthMinutes: growthMins,
         waterInterval: waterInterval,
         plantedAt: new Date().toISOString(),
         lastWateredAt: null,
+        season: crop.season,
       }]);
     }
   };
@@ -160,6 +170,7 @@ function App() {
                   color="secondary"
                   onClick={() => addTimer(crop.id)}
                   sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                  startIcon={<img src={getCropImageUrl(crop.season, crop.name)} alt={crop.name} style={{ width: 20, height: 20, objectFit: 'contain' }} />}
                 >
                   {crop.name}
                 </Button>
@@ -176,6 +187,7 @@ function App() {
           <Grid item xs={12} sm={6} md={4} key={idx}>
             <TimerCard
               cropName={t.name}
+              cropImageUrl={getCropImageUrl(t.season, t.name)}
               growthMinutes={t.growthMinutes}
               waterInterval={t.waterInterval}
               plantedAt={t.plantedAt}
