@@ -13,16 +13,16 @@ type Season = '봄' | '여름' | '가을' | '겨울';
 
 interface TimerEntry {
   uid: string;
-  id: string;
+  cropId: string | null; // null이면 비어있는 경작지
   name: string;
-  growthMinutes: number; // Wiki 기준 기본 분 (baseDays * 48)
+  growthMinutes: number;
   waterInterval: number;
-  harvestPoints: number; // 남은 성장 포인트 (가중치 1.0 기준의 초)
+  harvestPoints: number;
   remainingWaterSecs: number;
   lastUpdatedAt: string;
   isDry: boolean;
   isStarted: boolean;
-  season: Season; // 작물의 계절
+  season: Season;
 }
 
 const SEASON_LIST: Season[] = ['봄', '여름', '가을', '겨울'];
@@ -35,7 +35,7 @@ const seasonImages: Record<Season, string> = {
 };
 
 const getCropImageUrl = (season: string, name: string) => {
-  if (name.includes('테스트')) return '';
+  if (!name || name.includes('테스트')) return '';
   return new URL(`./assets/crops/${season}/${name}.png`, import.meta.url).href;
 };
 
@@ -43,6 +43,9 @@ function App() {
   const initialServerTime = getServerTime();
   const [currentInGameTime, setCurrentInGameTime] = useState(initialServerTime);
   const [season, setSeason] = useState<Season>(initialServerTime.season);
+  const [autoPlant, setAutoPlant] = useState(() => {
+    return localStorage.getItem('mc_auto_plant') === 'true';
+  });
   
   // 작물 탭 - 기본값은 현재 계절
   const [selectedTab, setSelectedTab] = useState<Season>(initialServerTime.season);
@@ -55,7 +58,7 @@ function App() {
         const baseMins = t.growthMinutes || (CROPS.find(c => c.name === t.name)?.baseGrowthDays || 1) * 48;
         return {
           uid: t.uid || crypto.randomUUID(),
-          id: t.id || '',
+          cropId: t.cropId || (CROPS.find(c => c.name === t.name)?.id || null),
           name: t.name,
           growthMinutes: baseMins,
           waterInterval: t.waterInterval,
@@ -85,6 +88,10 @@ function App() {
     localStorage.setItem('mc_timers', JSON.stringify(timers));
   }, [timers]);
 
+  useEffect(() => {
+    localStorage.setItem('mc_auto_plant', String(autoPlant));
+  }, [autoPlant]);
+
   const addTimer = (cropId: string) => {
     const crop = CROPS.find(c => c.id === cropId);
     if (crop) {
@@ -92,7 +99,7 @@ function App() {
       const waterInterval = crop.id === 'test_crop' ? 0.5 : (season === '여름' ? 24 : 48);
       setTimers(prev => [...prev, {
         uid: crypto.randomUUID(),
-        id: crop.id,
+        cropId: crop.id,
         name: crop.name,
         growthMinutes: baseMins,
         waterInterval: waterInterval,
@@ -147,7 +154,23 @@ function App() {
       </Paper>
 
       {/* 작물 심기 - 계절 탭 */}
-      <Typography variant="h5" sx={{ mb: 2, fontWeight: 'bold' }}>🌱 작물 심기</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+        <Typography variant="h5" sx={{ fontWeight: 'bold' }}>🌱 작물 심기</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'primary.main', color: 'white', px: 2, py: 1, borderRadius: 2, cursor: 'pointer' }}
+             onClick={() => setAutoPlant(!autoPlant)}>
+          <Typography variant="body2" sx={{ fontWeight: 'bold' }}>자동 심기 모드</Typography>
+          <Box sx={{ 
+            width: 40, height: 20, bgcolor: autoPlant ? 'success.light' : 'grey.400', 
+            borderRadius: 10, position: 'relative', transition: '0.3s' 
+          }}>
+            <Box sx={{ 
+              width: 16, height: 16, bgcolor: 'white', borderRadius: '50%', 
+              position: 'absolute', top: 2, left: autoPlant ? 22 : 2, transition: '0.3s' 
+            }} />
+          </Box>
+        </Box>
+      </Box>
+
       <Paper elevation={1} sx={{ mb: 4, borderRadius: 2, overflow: 'hidden' }}>
         {/* 계절 탭 */}
         <Tabs
@@ -225,6 +248,8 @@ function App() {
         {timers.map((t) => (
           <Grid item xs={12} sm={6} md={4} key={t.uid}>
             <TimerCard
+              uid={t.uid}
+              cropId={t.cropId}
               cropName={t.name}
               cropImageUrl={getCropImageUrl(t.season, t.name)}
               cropSeason={t.season}
@@ -235,6 +260,7 @@ function App() {
               initialIsStarted={t.isStarted}
               lastUpdatedAt={t.lastUpdatedAt}
               waterInterval={t.waterInterval}
+              autoPlantMode={autoPlant}
               onStatusChange={(updates) => updateTimer(t.uid, updates)}
               onRemove={() => removeTimer(t.uid)}
             />
