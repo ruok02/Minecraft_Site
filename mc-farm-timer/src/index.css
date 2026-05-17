@@ -119,3 +119,8 @@ code {
 * {
   font-family: 'Galmuri9', sans-serif !important;
 }
+
+body {
+  background-color: #0f0f0f;
+  color: #eeeeee;
+}

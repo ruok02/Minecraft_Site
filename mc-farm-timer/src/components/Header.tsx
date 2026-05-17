@@ -1,6 +1,8 @@
 import React from 'react';
-import { AppBar, Toolbar, Typography, Box, Button, Container } from '@mui/material';
+import { AppBar, Toolbar, Typography, Box, Button, Container, IconButton } from '@mui/material';
 import { Link, useLocation } from 'react-router-dom';
+import { useContext } from 'react';
+import { ColorModeContext } from '../main';
 import { getServerTime } from '../utils/calcTime';
 
 const seasonImages: Record<string, string> = {
@@ -10,76 +12,75 @@ const seasonImages: Record<string, string> = {
   '겨울': new URL('../assets/season/Winter.png', import.meta.url).href,
 };
 
+const menuItems = [
+  { label: '농사', path: '/farming', emoji: '🌾' },
+  { label: '테이밍', path: '/taming', emoji: '🐾' },
+  { label: '무역', path: '/trading', emoji: '⚖️' },
+  { label: '주문', path: '/order', emoji: '📦' },
+];
+
 const Header: React.FC = () => {
   const location = useLocation();
+  const { toggle, isDark } = useContext(ColorModeContext);
   const [time, setTime] = React.useState(getServerTime());
 
   React.useEffect(() => {
-    const timer = setInterval(() => {
-      setTime(getServerTime());
-    }, 1000);
-    return () => clearInterval(timer);
+    const t = setInterval(() => setTime(getServerTime()), 1000);
+    return () => clearInterval(t);
   }, []);
 
-  const menuItems = [
-    { label: '농사', path: '/farming' },
-    { label: '테이밍', path: '/taming' },
-    { label: '무역', path: '/trading' },
-    { label: '주문', path: '/order' },
-  ];
-
   return (
-    <AppBar position="fixed" color="inherit" elevation={1} sx={{ bgcolor: 'rgba(255,255,255,0.8)', backdropFilter: 'blur(8px)' }}>
+    <AppBar position="fixed" elevation={0} sx={{
+      bgcolor: 'background.default', // ✅ 배경색과 동일
+      borderBottom: '1px solid',
+      borderColor: 'divider',
+    }}>
       <Container maxWidth="lg">
-        <Toolbar disableGutters sx={{ display: 'flex', justifyContent: 'space-between' }}>
-          {/* 로고 */}
-          <Typography
-            variant="h6"
-            component={Link}
-            to="/"
-            sx={{
-              fontWeight: 'bold',
-              textDecoration: 'none',
-              color: 'primary.main',
-              display: 'flex',
-              alignItems: 'center'
-            }}
-          >
+        <Toolbar disableGutters sx={{ display: 'flex', justifyContent: 'space-between', py: 0.5 }}>
+          <Typography component={Link} to="/" sx={{
+            fontWeight: 'bold', textDecoration: 'none',
+            color: 'primary.main', fontSize: '1.1rem',
+          }}>
             심야알리미
           </Typography>
 
-          {/* 메뉴 */}
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            {menuItems.map((item) => (
-              <Button
-                key={item.path}
-                component={Link}
-                to={item.path}
-                color={location.pathname === item.path ? 'primary' : 'inherit'}
-                sx={{
-                  fontWeight: location.pathname === item.path ? 'bold' : 'normal',
-                  fontSize: '1rem'
-                }}
-              >
-                {item.label}
-              </Button>
-            ))}
+          <Box sx={{ display: 'flex', gap: 0.5 }}>
+            {menuItems.map(item => {
+              const isActive = location.pathname === item.path;
+              return (
+                <Button key={item.path} component={Link} to={item.path} sx={{
+                  color: isActive ? 'primary.main' : 'text.secondary',
+                  fontWeight: isActive ? 'bold' : 'normal',
+                  fontSize: '0.88rem',
+                  px: 1.5, borderRadius: 2,
+                  bgcolor: isActive ? 'rgba(126,184,247,0.1)' : 'transparent',
+                  '&:hover': { bgcolor: 'action.hover', color: 'text.primary' },
+                  gap: 0.5,
+                }}>
+                  <span>{item.emoji}</span>{item.label}
+                </Button>
+              );
+            })}
           </Box>
 
-          {/* 서버 시간 위젯 */}
-          <Box sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1.5,
-            p: '6px 16px',
-            borderRadius: '12px',
-            bgcolor: 'rgba(0,0,0,0.05)',
-            border: '1px solid rgba(0,0,0,0.05)',
-          }}>
-            <img src={seasonImages[time.season]} alt={time.season} style={{ width: 24, height: 24, objectFit: 'contain' }} />
-            <Typography sx={{ fontWeight: 'bold', fontFamily: 'monospace', fontSize: '0.9rem' }}>
-              {time.season} {time.day}일 {time.hour}:{time.minute}
-            </Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            {/* 다크모드 토글 */}
+            <IconButton onClick={toggle} size="small" sx={{ color: 'text.secondary', fontSize: '1.1rem' }}>
+              {isDark ? '☀️' : '🌙'}
+            </IconButton>
+
+            {/* 서버 시간 */}
+            <Box sx={{
+              display: 'flex', alignItems: 'center', gap: 1,
+              px: 1.5, py: 0.6, borderRadius: 2,
+              bgcolor: 'action.hover',
+              border: '1px solid', borderColor: 'divider',
+            }}>
+              <img src={seasonImages[time.season]} alt={time.season} style={{ width: 20, height: 20, objectFit: 'contain' }} />
+              <Typography sx={{ fontSize: '0.82rem', fontWeight: 600, color: 'text.primary' }}>
+                {time.season} {time.day}일 {time.hour}:{time.minute}
+              </Typography>
+            </Box>
           </Box>
         </Toolbar>
       </Container>

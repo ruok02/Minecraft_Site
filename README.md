@@ -51,6 +51,12 @@ Minecraft_Site
 │  │  │  │     └─ 파프리카.png
 │  │  │  ├─ fonts
 │  │  │  │  └─ galmuri9.ttf
+│  │  │  ├─ items
+│  │  │  │  ├─ scythe_diamond.png
+│  │  │  │  ├─ scythe_golden.png
+│  │  │  │  ├─ scythe_iron.png
+│  │  │  │  ├─ scythe_stone.png
+│  │  │  │  └─ scythe_wooden.png
 │  │  │  └─ season
 │  │  │     ├─ Autumn.png
 │  │  │     ├─ Spring.png
@@ -58,6 +64,8 @@ Minecraft_Site
 │  │  │     └─ Winter.png
 │  │  ├─ components
 │  │  │  ├─ CropSelectro.tsx
+│  │  │  ├─ Footer.tsx
+│  │  │  ├─ Header.tsx
 │  │  │  ├─ Layout.tsx
 │  │  │  └─ TimerCard.tsx
 │  │  ├─ data
@@ -66,6 +74,9 @@ Minecraft_Site
 │  │  │  └─ useInterval.ts
 │  │  ├─ index.css
 │  │  ├─ main.tsx
+│  │  ├─ pages
+│  │  │  ├─ Farming.tsx
+│  │  │  └─ Home.tsx
 │  │  └─ utils
 │  │     └─ calcTime.ts
 │  ├─ tsconfig.app.json
